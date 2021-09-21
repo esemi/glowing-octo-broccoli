@@ -1,0 +1,10 @@
+[package]
+name = "quotes-api"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+rocket = {version = "0.5.0-rc.1", features = ["json"]}
+strum = "0.21"
+strum_macros = "0.21"
+
