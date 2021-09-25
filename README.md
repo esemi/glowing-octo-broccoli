@@ -9,5 +9,5 @@ glowing-octo-broccoli
 - CI linters & ??
 - CI deploy to ??
 - readme & beautiful repo
-- connect with spreadsheets
+- connect from spreadsheets as SpreadsheetsApp
 - cache with redis
