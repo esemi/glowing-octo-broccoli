@@ -2,11 +2,12 @@ glowing-octo-broccoli
 ---
 
 ## todos
-- api-spec app
+- ~~api-spec app~~
+- ~~yahoo api parser~~
+- moex api parser
 - unittest
 - CI linters & ??
 - CI deploy to ??
-- yahoo api parser
-- moex api parser
-- cache with redis
 - readme & beautiful repo
+- connect with spreadsheets
+- cache with redis

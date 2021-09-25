@@ -2,11 +2,11 @@ extern crate strum;
 
 use std::str::FromStr;
 
-use actix_web::{Error, HttpResponse, web};
+use actix_web::{HttpResponse, web};
 use serde::{Deserialize, Serialize};
-use yahoo_finance_api as yahoo;
+use yahoo_finance_api::{YahooConnector, YahooError};
 
-use super::models::{Exchange, Price, Ticker};
+use super::models::{Exchange, Price, Ticker, Currency};
 
 #[derive(Serialize, Deserialize)]
 struct HealthzOutput {
@@ -34,6 +34,8 @@ pub async fn healthz() -> HttpResponse {
         .json(HealthzOutput {
             status: String::from("Ok"),
             // todo redis check
+            // todo yahoo check
+            // todo moex check
         })
 }
 
@@ -44,7 +46,7 @@ pub async fn quotes(request: web::Path<QuoteInput>) -> HttpResponse {
     let exchange: Exchange = match Exchange::from_str(&request.exchange) {
         Ok(s) => s,
         Err(_) => return HttpResponse::BadRequest()
-            .body(String::from("Exchange not found"))
+            .body(format!("Exchange {} not found", request.exchange))
     };
     let ticker_info = Ticker {
         exchange,
@@ -52,25 +54,48 @@ pub async fn quotes(request: web::Path<QuoteInput>) -> HttpResponse {
     };
     println!("Parsed ticker {:?}", &ticker_info);
 
-    let price = match fetch_ticker_price(&ticker_info).await {
+    let price = match search_ticker_price(&ticker_info).await {
         Ok(s) => s,
         Err(_) => return HttpResponse::BadRequest()
-            .body(String::from("Ticker was not found"))
+            .body(format!("Ticker {} was not found", ticker_info.ticker))
     };
-    println!("Ticker price is {}", price);
+    println!("Ticker price is {:?}", price);
 
     HttpResponse::Ok().json(QuoteOutput {
         status: String::from("im teapot"),
     })
 }
 
-async fn fetch_ticker_price(ticker: &Ticker) -> Result<f64, Error> {
-    let provider = yahoo::YahooConnector::new();
-    let yahoo_response = provider.get_latest_quotes(&ticker.ticker, "1d").await.unwrap();
-    let quote = yahoo_response.last_quote().unwrap();
-    println!("At quote price of {:?} was {}", ticker, quote.close);
-    Ok(quote.close)
+async fn search_ticker_price(ticker: &Ticker) -> Result<Price, String> {
+    // todo add short-time cache here
 
-    // // todo fetch from exchange-client and save to cache(x2)
-    // // todo fetch from long-cache
+    let price = match ticker.exchange {
+        // Exchange::MOEX => {
+        //
+        // },
+        _ => _yahoo_fetch(&ticker.ticker).await
+    };
+
+    match price {
+        Ok(s) => Ok(s),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+async fn _yahoo_fetch(ticker: &String) -> Result<Price, YahooError> {
+    let provider = YahooConnector::new();
+    let yahoo_response = provider
+        .get_latest_quotes(&ticker, "1d")
+        .await?;
+    let meta = &yahoo_response.chart.result[0].meta;
+    println!("Ticker quote meta is {:?}", meta);
+
+    let quote = yahoo_response.last_quote()?;
+    println!("Ticker last quote is {:?}", quote);
+
+    Ok(Price {
+        currency: Currency::from_str(&meta.currency).unwrap(),
+        price: quote.close,
+        timestamp: quote.timestamp,
+    })
 }

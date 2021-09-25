@@ -23,13 +23,13 @@ pub enum Exchange {
 
 #[derive(Debug)]
 pub struct Price {
-    currency: String,
-    price: f64,
-    timestamp: i64,
+    pub currency: Currency,
+    pub price: f64,
+    pub timestamp: u64,
 }
 
-#[derive(ToString)]
-enum Currency {
+#[derive(ToString, EnumString, Debug)]
+pub enum Currency {
     USD,
     EUR,
     RUB,
