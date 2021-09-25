@@ -1,5 +1,5 @@
+use serde::Deserialize;
 use strum_macros::{EnumString, ToString};
-use serde::{Deserialize};
 
 #[derive(Debug)]
 pub struct Ticker {
@@ -12,9 +12,10 @@ pub enum Exchange {
     #[strum(serialize = "LON", serialize = "LSE")]
     LSE,
 
-    #[strum(serialize = "NYSEARCA")]
+    #[strum(serialize = "NYSEARCA", serialize = "PCX")]
     NYSEARCA,
 
+    #[strum(serialize = "NASDAQ", serialize = "NGM")]
     NASDAQ,
 
     #[strum(serialize = "MCX")]
@@ -23,6 +24,7 @@ pub enum Exchange {
 
 #[derive(Debug)]
 pub struct Price {
+    pub exchange_name: Exchange,
     pub currency: Currency,
     pub price: f64,
     pub timestamp: u64,

@@ -10,7 +10,7 @@ async fn main() -> std::io::Result<()> {
             .route("/", web::get().to(handlers::index))
             .route("/healthz", web::get().to(handlers::healthz))
             .route("/quotes/{exchange}/{ticker}", web::get().to(handlers::quotes))
-        })
+    })
         .bind("127.0.0.1:8000")?
         .run()
         .await
