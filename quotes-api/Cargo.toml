@@ -11,3 +11,9 @@ serde_derive = "1.0.130"
 strum = "0.21.0"
 strum_macros = "0.21.1"
 yahoo_finance_api = "1.2.2"
+reqwest = { version = "0.11", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+async-compat = "0.2.1"
+
+[dev-dependencies]
+tokio-test = "0.4"

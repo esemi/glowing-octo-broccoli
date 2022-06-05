@@ -7,7 +7,11 @@ use serde::{Deserialize, Serialize};
 use yahoo_finance_api::{YahooConnector, YahooError};
 
 use super::models::{Currency, Exchange, Price, Ticker};
+use super::moex_api::{MoexConnector, MoexError};
 use super::state::AppState;
+
+const STATUS_OK: &'static str = "OK";
+const STATUS_FAIL: &'static str = "NOOK";
 
 #[derive(Serialize, Deserialize)]
 struct HealthzOutput {
@@ -38,11 +42,11 @@ pub async fn index() -> HttpResponse {
 pub async fn healthz(state: Data<AppState>) -> HttpResponse {
     HttpResponse::Ok()
         .json(HealthzOutput {
-            status: String::from("Ok"),
+            status: STATUS_OK.to_string(),
             yahoo: if state.yahoo_client.get_latest_quotes("AAPL", "1m").await.is_ok() {
-                "Ok".to_string()
+                STATUS_OK.to_string()
             } else {
-                "Failed".to_string()
+                STATUS_FAIL.to_string()
             },
             // todo moex check
         })
@@ -52,7 +56,8 @@ pub async fn quotes(request: web::Path<QuoteInput>, state: Data<AppState>) -> Ht
     println!("Get quotes {:?}", request);
 
     // parse exchange
-    let exchange: Exchange = match Exchange::from_str(&request.exchange) {
+    let exchange = Exchange::from_str(&request.exchange);
+    let exchange: Exchange = match exchange {
         Ok(s) => s,
         Err(_) => return HttpResponse::BadRequest()
             .body(format!("Exchange '{}' not found", request.exchange))
@@ -65,8 +70,8 @@ pub async fn quotes(request: web::Path<QuoteInput>, state: Data<AppState>) -> Ht
 
     let price = match search_ticker_price(&ticker_info, state).await {
         Ok(s) => s,
-        Err(_) => return HttpResponse::BadRequest()
-            .body(format!("Ticker '{}' was not found", ticker_info.ticker))
+        Err(e) => return HttpResponse::BadRequest()
+            .body(format!("Ticker '{}' was not found {}", ticker_info.ticker, e))
     };
     println!("Ticker price is {:?}", price);
 
@@ -82,9 +87,7 @@ pub async fn quotes(request: web::Path<QuoteInput>, state: Data<AppState>) -> Ht
 
 async fn search_ticker_price(ticker: &Ticker, state: Data<AppState>) -> Result<Price, String> {
     let price = match ticker.exchange {
-        // Exchange::MOEX => {
-        //
-        // },
+        // Exchange::MOEX => {_moex_fetch(&ticker.ticker, &state.moex_client).await},
         _ => _yahoo_fetch(&ticker.ticker, &state.yahoo_client).await
     };
 
@@ -93,6 +96,33 @@ async fn search_ticker_price(ticker: &Ticker, state: Data<AppState>) -> Result<P
         Err(e) => Err(e.to_string()),
     }
 }
+
+
+async fn _moex_fetch(ticker: &String, client: &MoexConnector) -> Result<Price, MoexError> {
+    let moex_response = client.get_ticker_info(&ticker).await?;
+
+    let meta = &moex_response.meta;
+    println!("Ticker quote meta is {:?}", meta);
+
+    let quote = &moex_response.quote?;
+    println!("Ticker last quote is {:?}", quote);
+
+    // get securities specification
+    // https://iss.moex.com/iss/securities?q=SU26209RMFS5 and select primary board
+    // select market by specification.group
+    // get quotes
+    // https://iss.moex.com/iss/engines/stock/markets/bonds/boards/TQOB/securities/SU26209RMFS5.xml
+    // adjust price by nominal for bonds
+
+    Ok(Price {
+        exchange_name: Exchange::MOEX,
+        currency: Currency::from_str(&meta.currency)
+            .expect("Unexpected currency"),
+        price: quote.close,
+        timestamp: quote.timestamp,
+    })
+}
+
 
 async fn _yahoo_fetch(ticker: &String, client: &YahooConnector) -> Result<Price, YahooError> {
     let yahoo_response = client.get_latest_quotes(&ticker, "1d").await?;
